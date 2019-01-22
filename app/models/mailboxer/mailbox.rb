@@ -22,6 +22,11 @@ class Mailboxer::Mailbox
     Mailboxer::Conversation.between(messageable, other_messageable)
   end
 
+  #Returns the conversations between messageable and other messageable
+  def conversations_only_with(other_messageable)
+    Mailboxer::Conversation.only_between(messageable, other_messageable)
+  end
+
   #Returns the conversations for the messageable
   #
   #Options
