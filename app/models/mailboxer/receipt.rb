@@ -1,6 +1,6 @@
 class Mailboxer::Receipt < ActiveRecord::Base
   self.table_name = :mailboxer_receipts
-  attr_accessible :trashed, :is_read, :deleted if Mailboxer.protected_attributes?
+  attr_accessible :trashed, :is_read, :deleted, :is_delivered if Mailboxer.protected_attributes?
 
   belongs_to :notification, :class_name => "Mailboxer::Notification"
   belongs_to :receiver, :polymorphic => :true, :required => false
