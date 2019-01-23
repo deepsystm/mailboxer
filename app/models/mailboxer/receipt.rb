@@ -162,6 +162,13 @@ private
   def after_create_callback
     # отправить сообщение в websocket
     Websocket.publish "#{self.receiver.class.name.downcase}/#{self.receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/new'
+    # отправить уведомление на email
+    owner = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
+    Resque.enqueue(SendNotificationJob, 'new_message', {
+      user_id: owner, user_type: owner.class.name, sender_name: self.message.sender.name,
+      time: self.message.created_at.strftime("%d %B %Y %H:%M"), message: self.message.body,
+      conversation_id: self.conversation.id
+    })
   end
 
   def after_update_callback
