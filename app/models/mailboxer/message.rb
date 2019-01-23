@@ -46,4 +46,5 @@ class Mailboxer::Message < Mailboxer::Notification
     end
     sender_receipt
   end
+
 end

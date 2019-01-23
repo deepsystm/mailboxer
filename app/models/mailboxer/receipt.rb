@@ -8,6 +8,13 @@ class Mailboxer::Receipt < ActiveRecord::Base
 
   validates_presence_of :receiver
 
+  #
+  # Callbacks
+  #
+  after_create    :after_create_callback
+  after_update    :after_update_callback
+  before_destroy  :before_destroy_callback
+
   scope :recipient, lambda { |recipient|
     where(:receiver_id => recipient.id,:receiver_type => recipient.class.base_class.to_s)
   }
@@ -138,8 +145,7 @@ class Mailboxer::Receipt < ActiveRecord::Base
     trashed
   end
 
-  protected
-
+protected
   if Mailboxer.search_enabled
     searchable do
       text :subject, :boost => 5 do
@@ -151,4 +157,21 @@ class Mailboxer::Receipt < ActiveRecord::Base
       integer :receiver_id
     end
   end
+
+private
+  def after_create_callback
+    # отправить сообщение в websocket
+    Websocket.publish "#{self.receiver.class.name.downcase}/#{self.receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/new'
+  end
+
+  def after_update_callback
+    # отправить сообщение в websocket
+    Websocket.publish "#{self.receiver.class.name.downcase}/#{self.receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/update'
+  end
+
+  def before_destroy_callback
+    # отправить сообщение в websocket
+    Websocket.publish "#{self.receiver.class.name.downcase}/#{self.receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/destroy'
+  end
+
 end

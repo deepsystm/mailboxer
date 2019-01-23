@@ -179,4 +179,5 @@ class Mailboxer::Notification < ActiveRecord::Base
   def sanitize(text)
     ::Mailboxer::Cleaner.instance.sanitize(text)
   end
+
 end
