@@ -182,7 +182,7 @@ class Mailboxer::Notification < ActiveRecord::Base
     ::Mailboxer::Cleaner.instance.sanitize(text)
   end
 
-private
+protected
   def before_create_callback
     self.edited_at = Time.now
   end
