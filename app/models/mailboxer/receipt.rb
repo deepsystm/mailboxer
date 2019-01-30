@@ -101,6 +101,7 @@ class Mailboxer::Receipt < ActiveRecord::Base
     message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
     if message_receiver_receipt = self.message.receipts_for(messages_receiver).first
       if not message_receiver_receipt.is_read?
+        message_receiver_receipt.mark_as_deleted
         data = { message_id: message_receiver_receipt.id, conversation_id: self.conversation.id }
         Websocket.publish "user/#{message_receiver.id}", data, 'messages/destroy'
       end
