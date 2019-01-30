@@ -92,10 +92,10 @@ class Mailboxer::Receipt < ActiveRecord::Base
 
   #Marks the receipt as deleted
   def mark_as_deleted
-    update_attributes(:deleted => true)
+    self.update_attributes(deleted: true)
     # удаляем сообщение у получателя если он его ещё не прочёл
     message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
-    if message_receiver_receipt = self.message.receipts_for(messages_receiver).first
+    if message_receiver_receipt = self.message.receipts_for(message_receiver).first
       if not message_receiver_receipt.is_read?
         message_receiver_receipt.mark_as_deleted
         data = { message_id: message_receiver_receipt.id, conversation_id: self.conversation.id }
@@ -192,8 +192,10 @@ private
 
   def after_update_callback
     # отправить сообщение в websocket
-    message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
-    Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/update'
+    if not self.deleted
+      message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
+      Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/update'
+    end
   end
 
 end
