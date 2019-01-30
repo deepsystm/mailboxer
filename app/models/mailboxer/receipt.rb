@@ -97,6 +97,14 @@ class Mailboxer::Receipt < ActiveRecord::Base
   #Marks the receipt as deleted
   def mark_as_deleted
     update_attributes(:deleted => true)
+    # удаляем сообщение у получателя если он его ещё не прочёл
+    message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
+    if message_receiver_receipt = self.message.receipts_for(messages_receiver).first
+      if not message_receiver_receipt.is_read?
+        data = { message_id: message_receiver_receipt.id, conversation_id: self.conversation.id }
+        Websocket.publish "user/#{message_receiver.id}", data, 'messages/destroy'
+      end
+    end
   end
 
   #Marks the receipt as not deleted
@@ -164,27 +172,21 @@ protected
 
 private
   def after_create_callback
+    message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
     # отправить сообщение в websocket
-    Websocket.publish "#{self.receiver.class.name.downcase}/#{self.receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/new'
-    # отправить уведомление на email
-    owner = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
+    Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/new'
+    # отправить уведомление на email если с момента последнего сообщения получателя прошло более 4-х часов
     Resque.enqueue(SendNotificationJob, 'new_message', {
-      user_id: owner, user_type: owner.class.name, sender_name: self.message.sender.name,
+      user_id: message_receiver, user_type: message_receiver.class.name, sender_name: self.message.sender.name,
       time: self.message.created_at.strftime("%d %B %Y %H:%M"), message: self.message.body,
       conversation_id: self.conversation.id
-    })
+    }) if self.conversation.messages.where(sender: message_receiver).last.created_at < Time.now - 4.hours
   end
 
   def after_update_callback
     # отправить сообщение в websocket
     message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
     Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/update'
-  end
-
-  def before_destroy_callback
-    # отправить сообщение в websocket
-    message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
-    Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/destroy'
   end
 
 end
