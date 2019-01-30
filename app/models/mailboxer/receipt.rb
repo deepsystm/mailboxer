@@ -43,7 +43,7 @@ class Mailboxer::Receipt < ActiveRecord::Base
     def mark_as_read(options={})
       update_receipts({:is_read => true}, options)
       # отправить сообщение в websocket
-      message_receiver = self.message.sender.is_a? User ? self.message.sender : self.message.sender.user
+      message_receiver = self.message.sender.is_a?(User) ? self.message.sender : self.message.sender.user
       data = { message_id: self.id, conversation_id: self.conversation.id, is_read: true }
       Websocket.publish "user/#{message_receiver.id}", data, 'messages/read'
     end
@@ -98,7 +98,7 @@ class Mailboxer::Receipt < ActiveRecord::Base
   def mark_as_deleted
     update_attributes(:deleted => true)
     # удаляем сообщение у получателя если он его ещё не прочёл
-    message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
+    message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
     if message_receiver_receipt = self.message.receipts_for(messages_receiver).first
       if not message_receiver_receipt.is_read?
         message_receiver_receipt.mark_as_deleted
@@ -173,7 +173,7 @@ protected
 
 private
   def after_create_callback
-    message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
+    message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
     # отправить сообщение в websocket
     Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/new'
     # отправить уведомление на email если с момента последнего сообщения получателя прошло более 4-х часов
@@ -186,7 +186,7 @@ private
 
   def after_update_callback
     # отправить сообщение в websocket
-    message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
+    message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
     Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/update'
   end
 
