@@ -42,6 +42,10 @@ class Mailboxer::Receipt < ActiveRecord::Base
     #Marks all the receipts from the relation as read
     def mark_as_read(options={})
       update_receipts({:is_read => true}, options)
+      # отправить сообщение в websocket
+      message_receiver = self.message.sender.is_a? User ? self.message.sender : self.message.sender.user
+      data = { message_id: self.id, conversation_id: self.conversation.id, is_read: true }
+      Websocket.publish "user/#{message_receiver.id}", data, 'messages/read'
     end
 
     #Marks all the receipts from the relation as unread
@@ -173,12 +177,14 @@ private
 
   def after_update_callback
     # отправить сообщение в websocket
-    Websocket.publish "#{self.receiver.class.name.downcase}/#{self.receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/update'
+    message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
+    Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/update'
   end
 
   def before_destroy_callback
     # отправить сообщение в websocket
-    Websocket.publish "#{self.receiver.class.name.downcase}/#{self.receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/destroy'
+    message_receiver = self.receiver.is_a? User ? self.receiver : self.receiver.user
+    Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/destroy'
   end
 
 end
