@@ -114,7 +114,7 @@ class Mailboxer::Receipt < ActiveRecord::Base
     update_attributes(:is_read => true)
     # отправить сообщение в websocket
     message_receiver = self.message.sender.is_a?(User) ? self.message.sender : self.message.sender.user
-    data = { message_id: self.id, conversation_id: self.conversation.id, is_read: true }
+    data = { message_id: self.message.receipts_for(self.message.sender).first.id, conversation_id: self.conversation.id, is_read: true }
     Websocket.publish "user/#{message_receiver.id}", data, 'messages/read'
   end
 
@@ -177,11 +177,17 @@ private
     # отправить сообщение в websocket
     Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/new'
     # отправить уведомление на email если с момента последнего сообщения получателя прошло более 4-х часов
+    send_email_notification = true
+    if self.conversation.messages.where(sender: message_receiver).last
+      send_email_notification = self.conversation.messages.where(sender: message_receiver).last.created_at < Time.now - 4.hours
+    end
+    send_email_notification = false if message_receiver.online
+
     Resque.enqueue(SendNotificationJob, 'new_message', {
       user_id: message_receiver, user_type: message_receiver.class.name, sender_name: self.message.sender.name,
       time: self.message.created_at.strftime("%d %B %Y %H:%M"), message: self.message.body,
       conversation_id: self.conversation.id
-    }) if self.conversation.messages.where(sender: message_receiver).last.created_at < Time.now - 4.hours
+    }) if send_email_notification
   end
 
   def after_update_callback
