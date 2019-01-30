@@ -42,10 +42,6 @@ class Mailboxer::Receipt < ActiveRecord::Base
     #Marks all the receipts from the relation as read
     def mark_as_read(options={})
       update_receipts({:is_read => true}, options)
-      # отправить сообщение в websocket
-      message_receiver = self.message.sender.is_a?(User) ? self.message.sender : self.message.sender.user
-      data = { message_id: self.id, conversation_id: self.conversation.id, is_read: true }
-      Websocket.publish "user/#{message_receiver.id}", data, 'messages/read'
     end
 
     #Marks all the receipts from the relation as unread
@@ -116,6 +112,10 @@ class Mailboxer::Receipt < ActiveRecord::Base
   #Marks the receipt as read
   def mark_as_read
     update_attributes(:is_read => true)
+    # отправить сообщение в websocket
+    message_receiver = self.message.sender.is_a?(User) ? self.message.sender : self.message.sender.user
+    data = { message_id: self.id, conversation_id: self.conversation.id, is_read: true }
+    Websocket.publish "user/#{message_receiver.id}", data, 'messages/read'
   end
 
   #Marks the receipt as unread
