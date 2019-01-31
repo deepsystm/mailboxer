@@ -173,6 +173,7 @@ protected
 
 private
   def after_create_callback
+    self.update_columns(is_read: false)
     message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
     # отправить сообщение в websocket
     Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/new'
