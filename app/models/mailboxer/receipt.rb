@@ -116,7 +116,7 @@ class Mailboxer::Receipt < ActiveRecord::Base
     sender_message_receipt.update_attributes(is_read: true) if not self.is_for_sender?
     # отправить сообщение в websocket
     message_receiver = self.message.sender.is_a?(User) ? self.message.sender : self.message.sender.user
-    data = { message_id: sender_message.id, conversation_id: self.conversation.id, is_read: true }
+    data = { message_id: sender_message_receipt.id, conversation_id: self.conversation.id, is_read: true }
     Websocket.publish "user/#{message_receiver.id}", data, 'messages/read'
   end
 
