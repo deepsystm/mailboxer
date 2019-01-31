@@ -12,8 +12,6 @@ class Mailboxer::Receipt < ActiveRecord::Base
   # Callbacks
   #
   after_create    :after_create_callback
-  after_update    :after_update_callback
-  before_destroy  :before_destroy_callback
 
   scope :recipient, lambda { |recipient|
     where(:receiver_id => recipient.id,:receiver_type => recipient.class.base_class.to_s)
@@ -106,21 +104,25 @@ class Mailboxer::Receipt < ActiveRecord::Base
 
   #Marks the receipt as not deleted
   def mark_as_not_deleted
-    update_attributes(:deleted => false)
+    self.update_attributes(deleted: false)
   end
 
   #Marks the receipt as read
   def mark_as_read
-    update_attributes(:is_read => true)
+    # отмечаем сообщение как прочитанное для себя
+    self.update_attributes(is_read: true)
+    # отмечаем сообщение как прочитанное для отправителя
+    sender_message = self.message.receipts_for(self.message.sender).first
+    sender_message.update_attributes(is_read: true)
     # отправить сообщение в websocket
     message_receiver = self.message.sender.is_a?(User) ? self.message.sender : self.message.sender.user
-    data = { message_id: self.message.receipts_for(self.message.sender).first.id, conversation_id: self.conversation.id, is_read: true }
+    data = { message_id: sender_message.id, conversation_id: self.conversation.id, is_read: true }
     Websocket.publish "user/#{message_receiver.id}", data, 'messages/read'
   end
 
   #Marks the receipt as unread
   def mark_as_unread
-    update_attributes(:is_read => false)
+    self.update_attributes(is_read: false)
   end
 
   #Marks the receipt as trashed
@@ -158,6 +160,10 @@ class Mailboxer::Receipt < ActiveRecord::Base
     trashed
   end
 
+  def is_for_sender?
+    self.message.sender == self.receiver
+  end
+
 protected
   if Mailboxer.search_enabled
     searchable do
@@ -189,14 +195,6 @@ private
       time: self.message.created_at.strftime("%d %B %Y %H:%M"), message: self.message.body,
       conversation_id: self.conversation.id
     }) if send_email_notification
-  end
-
-  def after_update_callback
-    # отправить сообщение в websocket
-    if not self.deleted
-      message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
-      Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/update'
-    end
   end
 
 end
