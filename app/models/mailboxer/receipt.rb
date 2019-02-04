@@ -113,7 +113,7 @@ class Mailboxer::Receipt < ActiveRecord::Base
     self.update_attributes(is_read: true)
     # отмечаем сообщение как прочитанное для отправителя
     sender_message_receipt = self.message.receipts_for(self.message.sender).first
-    sender_message_receipt.update_attributes(is_read: true) if not self.is_for_sender?
+    sender_message_receipt.mark_as_read if not self.is_for_sender?
     # отправить сообщение в websocket
     message_receiver = self.message.sender.is_a?(User) ? self.message.sender : self.message.sender.user
     data = { message_id: sender_message_receipt.id, conversation_id: self.conversation.id, is_read: true }
