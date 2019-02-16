@@ -191,7 +191,7 @@ private
     send_email_notification = false if message_receiver.online
 
     Resque.enqueue(SendNotificationJob, 'new_message', {
-      user_id: message_receiver, user_type: message_receiver.class.name, sender_name: self.message.sender.name,
+      user_id: message_receiver.id, user_type: message_receiver.class.name, sender_name: self.message.sender.name,
       time: self.message.created_at.strftime("%d %B %Y %H:%M"), message: self.message.body,
       conversation_id: self.conversation.id
     }) if send_email_notification
