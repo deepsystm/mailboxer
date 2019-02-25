@@ -58,6 +58,11 @@ class Mailboxer::Receipt < ActiveRecord::Base
       update_receipts({:trashed => false}, options)
     end
 
+    #Marks the receipt as deleted
+    def mark_as_deleted(options={})
+      update_receipts({:deleted => true}, options)
+    end
+
     #Marks the receipt as not deleted
     def mark_as_not_deleted(options={})
       update_receipts({:deleted => false}, options)
@@ -85,16 +90,20 @@ class Mailboxer::Receipt < ActiveRecord::Base
 
   #Marks the receipt as deleted
   def mark_as_deleted(options={})
-    update_receipts({:deleted => true}, options)
-    # удаляем сообщение у получателя если он его ещё не прочёл
-    # message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
-    # if message_receiver_receipt = self.message.receipts_for(message_receiver).first
-    #   if not message_receiver_receipt.is_read?
-    #     message_receiver_receipt.mark_as_deleted
-    #     data = { message_id: message_receiver_receipt.id, conversation_id: self.conversation.id }
-    #     Websocket.publish "user/#{message_receiver.id}", data, 'messages/destroy'
-    #   end
-    # end
+    # отмечаем сообщение как удаленное
+    self.update_attributes(deleted: true)
+    # удаляем сообщение у получателей если они его ещё не прочли
+    if self.is_for_sender?
+      self.message.receipts.each do |receipt|
+        if receipt != self
+          if not receipt.is_read?
+            receipt.mark_as_deleted
+            data = { message_id: receipt.id, conversation_id: receipt.conversation.id }
+            Websocket.publish "user/#{receipt.receiver.id}", data, 'messages/destroy'
+          end
+        end
+      end
+    end
   end
 
   #Marks the receipt as not deleted
