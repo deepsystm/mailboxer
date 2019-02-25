@@ -12,7 +12,8 @@ class Mailboxer::Notification < ActiveRecord::Base
   validates :body,    :presence => true,
                       :length => { :maximum => Mailboxer.body_max_length }
 
-  before_create :before_create_callback
+  before_create       :before_create_callback
+  before_destroy      :before_destroy_callback
 
   scope :recipient, lambda { |recipient|
     joins(:receipts).where('mailboxer_receipts.receiver_id' => recipient.id,'mailboxer_receipts.receiver_type' => recipient.class.base_class.to_s)
@@ -185,6 +186,11 @@ class Mailboxer::Notification < ActiveRecord::Base
 protected
   def before_create_callback
     self.edited_at = Time.now
+  end
+
+  def before_destroy_callback
+    Rails.cache.delete_matched(/#{self.cache_key.split('-')[0]}-(.*)/)
+    true # возвращается true по причине возврата Rails.cache.delete_matched false и отмене удаления модели
   end
 
 end

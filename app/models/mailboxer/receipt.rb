@@ -11,7 +11,8 @@ class Mailboxer::Receipt < ActiveRecord::Base
   #
   # Callbacks
   #
-  after_create    :after_create_callback
+  after_create        :after_create_callback
+  before_destroy      :before_destroy_callback
 
   scope :recipient, lambda { |recipient|
     where(:receiver_id => recipient.id,:receiver_type => recipient.class.base_class.to_s)
@@ -183,10 +184,10 @@ private
     message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
     # отправить сообщение в websocket
     Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/new'
-    # отправить уведомление на email если с момента последнего сообщения получателя прошло более 4-х часов
+    # отправить уведомление на email если с момента последнего сообщения получателя прошло более суток
     send_email_notification = true
     if self.conversation.messages.where(sender: message_receiver).last
-      send_email_notification = self.conversation.messages.where(sender: message_receiver).last.created_at < Time.now - 4.hours
+      send_email_notification = self.conversation.messages.where(sender: message_receiver).last.created_at < (Time.now - 1.day)
     end
     send_email_notification = false if message_receiver.online
 
@@ -195,6 +196,11 @@ private
       time: self.message.created_at.strftime("%d %B %Y %H:%M"), message: self.message.body,
       conversation_id: self.conversation.id
     }) if send_email_notification
+  end
+
+  def before_destroy_callback
+    Rails.cache.delete_matched(/#{self.cache_key.split('-')[0]}-(.*)/)
+    true # возвращается true по причине возврата Rails.cache.delete_matched false и отмене удаления модели
   end
 
 end

@@ -5,6 +5,8 @@ class Mailboxer::Message < Mailboxer::Notification
   belongs_to :conversation, :validate => true, :autosave => true
   validates_presence_of :sender
 
+  before_destroy :before_destroy_callback
+
   class_attribute :on_deliver_callback
   protected :on_deliver_callback
   scope :conversation, lambda { |conversation|
@@ -45,6 +47,11 @@ class Mailboxer::Message < Mailboxer::Notification
       on_deliver_callback.call(self) if on_deliver_callback
     end
     sender_receipt
+  end
+
+  def before_destroy_callback
+    Rails.cache.delete_matched(/#{self.cache_key.split('-')[0]}-(.*)/)
+    true # возвращается true по причине возврата Rails.cache.delete_matched false и отмене удаления модели
   end
 
 end

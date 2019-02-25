@@ -11,6 +11,7 @@ class Mailboxer::Conversation < ActiveRecord::Base
                       :length => { :maximum => Mailboxer.subject_max_length }
 
   before_validation :clean
+  before_destroy      :before_destroy_callback
 
   scope :participant, lambda {|participant|
     where('mailboxer_notifications.type'=> Mailboxer::Message.name).
@@ -209,5 +210,10 @@ class Mailboxer::Conversation < ActiveRecord::Base
 
   def sanitize(text)
     ::Mailboxer::Cleaner.instance.sanitize(text)
+  end
+
+  def before_destroy_callback
+    Rails.cache.delete_matched(/#{self.cache_key.split('-')[0]}-(.*)/)
+    true # возвращается true по причине возврата Rails.cache.delete_matched false и отмене удаления модели
   end
 end
