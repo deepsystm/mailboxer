@@ -187,10 +187,10 @@ private
     message_receiver = self.receiver.is_a?(User) ? self.receiver : self.receiver.user
     # отправить сообщение в websocket
     Websocket.publish "user/#{message_receiver.id}", CachedSerializer.render(self, MessageSerializer), 'messages/new'
-    # отправить уведомление на email если с момента последнего сообщения получателя прошло более суток
+    # отправить уведомление на email если с момента последнего сообщения получателя прошло более 2-х часов
     send_email_notification = true
     if self.conversation.messages.where(sender: message_receiver).last
-      send_email_notification = self.conversation.messages.where(sender: message_receiver).last.created_at < (Time.now - 1.day)
+      send_email_notification = self.conversation.messages.where(sender: message_receiver).last.created_at < (Time.now - 2.hours)
     end
     send_email_notification = false if message_receiver.online
 
