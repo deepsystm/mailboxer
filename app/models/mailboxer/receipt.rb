@@ -193,12 +193,19 @@ private
       send_email_notification = self.conversation.messages.where(sender: message_receiver).last.created_at < (Time.now - 2.hours)
     end
     send_email_notification = false if message_receiver.online
-
+    
+    # send email notification
     Resque.enqueue(SendNotificationJob, 'new_message', {
       user_id: message_receiver.id, user_type: message_receiver.class.name, sender_name: self.message.sender.name,
       time: self.message.created_at.strftime("%d %B %Y %H:%M"), message: self.message.body.gsub("\n", '<br />'),
       conversation_id: self.conversation.id
     }) if send_email_notification
+    
+    # send push notification
+    Resque.enqueue(SendPushNotificationJob, 'new_message', {
+      user_id: message_receiver.id, user_type: message_receiver.class.name, title: self.message.sender.name, icon: self.message.sender.avatar.url(:xsmall), 
+      message: self.message.body.gsub("\n", '<br />'), url: "?dialog=#{self.conversation.id}"
+    }) if message_receiver.send_push_notification?('new_message')
   end
 
   def before_destroy_callback
