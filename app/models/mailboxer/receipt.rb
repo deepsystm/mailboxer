@@ -204,7 +204,7 @@ private
     # send push notification
     Resque.enqueue(SendPushNotificationJob, 'new_message', {
       user_id: message_receiver.id, user_type: message_receiver.class.name, title: self.message.sender.name, icon: self.message.sender.avatar.url(:xsmall), 
-      message: self.message.body.gsub("\n", '<br />'), url: "?dialog=#{self.conversation.id}"
+      message: self.message.body.gsub("\n", '<br />'), url: "#{Rails.application.secrets.protocol}#{Rails.application.secrets.domain_name}/my/messages?dialog=#{self.conversation.id}"
     }) if message_receiver.send_push_notification?('new_message')
   end
 
