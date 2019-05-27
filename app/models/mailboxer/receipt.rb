@@ -201,11 +201,14 @@ private
       conversation_id: self.conversation.id
     }) if send_email_notification
     
-    # send push notification
-    Resque.enqueue(SendPushNotificationJob, 'new_message', {
-      user_id: message_receiver.id, user_type: message_receiver.class.name, title: self.message.sender.name, icon: self.message.sender.avatar.url(:xsmall), 
-      message: self.message.body.gsub("\n", '<br />'), url: "#{Rails.application.secrets.protocol}#{Rails.application.secrets.domain_name}/my/messages?dialog=#{self.conversation.id}"
-    }) if message_receiver.send_push_notification?('new_message')
+    # если получатель разрешил push-уведомления  +  отправитель != получатель  +  получатель не онлайн
+    if message_receiver.send_push_notification?('new_message') and message_receiver != self.message.sender and not message_receiver.online
+      # send push notification
+      Resque.enqueue(SendPushNotificationJob, 'new_message', {
+        user_id: message_receiver.id, user_type: message_receiver.class.name, title: self.message.sender.name, icon: self.message.sender.avatar.url(:xsmall), 
+        message: self.message.body.gsub("\n", '<br />'), url: "#{Rails.application.secrets.protocol}#{Rails.application.secrets.domain_name}/my/messages?dialog=#{self.conversation.id}"
+      })
+    end
   end
 
   def before_destroy_callback
